@@ -2,8 +2,13 @@ import sqlite3, pathlib, hashlib, os, base64, secrets
 from cryptography.fernet import Fernet
 
 BASE = pathlib.Path(__file__).resolve().parents[1]
-DBPATH = BASE / "data" / "autoprocure.db"
-SECRET_FILE = BASE / "data" / "secret.key"
+VERCEL = os.environ.get("VERCEL") == "1"
+if VERCEL:
+    DBPATH = pathlib.Path("/tmp/autoprocure.db")
+    SECRET_FILE = pathlib.Path("/tmp/secret.key")
+else:
+    DBPATH = BASE / "data" / "autoprocure.db"
+    SECRET_FILE = BASE / "data" / "secret.key"
 
 def get_secret():
     """App-managed secret: generated once, persisted next to the database.
@@ -53,7 +58,8 @@ def _migrate(c):
         c.execute("ALTER TABLE purchase_requests ADD COLUMN created_by INTEGER REFERENCES users(id)")
 
 def init():
-    (BASE / "data").mkdir(exist_ok=True)
+    if not VERCEL:
+        (BASE / "data").mkdir(exist_ok=True)
     c = conn(); c.executescript((BASE / "data" / "schema.sql").read_text(encoding="utf-8"))
     _migrate(c); c.commit()
     if c.execute("SELECT COUNT(*) c FROM users").fetchone()["c"] == 0:
