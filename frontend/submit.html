@@ -1,0 +1,60 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | New Requisition</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body><div class="shell">
+<aside class="side">
+  <div class="brand"><a href="/dashboard.html"><span class="wordmark">GATEWAY</span><span class="brand-sub">AUTOPROCURE AI | PR CONTROL</span></a></div>
+  <nav class="nav">
+    <a href="/dashboard.html" data-nav="dashboard"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span><i class="arr">→</i></a>
+    <a href="/submit.html" data-nav="submit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span><i class="arr">→</i></a>
+    <a href="/history.html" data-nav="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>My Requests</span><i class="arr">→</i></a>
+    <a href="/analytics.html" data-nav="analytics"><svg viewBox="0 0 24 24"><path d="M5 20V10M11 20V4M17 20v-8M21 20H3"/></svg><span>Analytics</span><i class="arr">→</i></a>
+    <a href="/budget.html" data-nav="budget"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg><span>Department Budgets</span><i class="arr">→</i></a>
+    <a href="/settings.html" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Settings</span><i class="arr">→</i></a>
+  </nav>
+  <div class="side-foot"><div class="userbox"><div class="un" data-user-name>—</div><div class="ur" data-user-role>—</div></div>
+    <button class="btn" id="logout" style="margin-top:.7rem;width:100%;justify-content:center">LOG OUT <i class="arr">→</i></button></div>
+</aside>
+<div><header class="top"><div class="crumb"><a href="/dashboard.html">HOME</a><i class="arr">→</i><span>NEW REQUISITION</span></div>
+  <form class="search" id="globalsearch"><input placeholder="SEARCH REQUESTS, ITEMS, SKUs..."><button type="submit"><i class="arr">→</i></button></form></header>
+<main class="main"><div class="hazardbar"></div>
+  <div class="pagehead"><div><h1>NEW REQUISITION</h1><div class="sub">Raw input accepted. The gate sequence cleans, audits and scores it before any supplier spend.</div></div></div>
+  <div class="grid23">
+    <form class="card" id="pf"><header><h2>PURCHASE REQUEST FORM</h2><span class="mono">ALL FIELDS LOGGED</span></header>
+      <div class="body">
+        <div class="field"><label for="raw">Item Description (raw text allowed)</label>
+          <textarea id="raw" rows="2" required placeholder="e.g. 500 saftey helms for site refit project"></textarea></div>
+        <div class="formgrid">
+          <div class="field"><label for="dept">Department</label><select id="dept" required></select></div>
+          <div class="field"><label for="qty">Quantity</label><input id="qty" type="number" min="1" value="10" required></div>
+          <div class="field"><label for="price">Estimated Price (per unit)</label><input id="price" type="number" min="0" step="0.01" value="25" required></div>
+          <div class="field"><label for="date">Required Date</label><input id="date" type="date" value="2026-09-20" required></div>
+        </div>
+        <div class="field"><label for="notes">Purpose / Notes (optional)</label><textarea id="notes" rows="2" placeholder="Site refit — safety equipment for new project"></textarea></div>
+        <button class="btn btn-primary" type="submit">RUN GATES <i class="arr">→</i></button>
+      </div></form>
+    <div class="card"><header><h2>GATE SEQUENCE PREVIEW</h2></header>
+      <div class="body"><ol class="acts">
+        <li>Data cleaning & SKU mapping against item master.</li>
+        <li>Budget audit vs remaining departmental allocation.</li>
+        <li>Multi-warehouse idle stock sweep + transfer draft.</li>
+        <li>Open-PO overlap & 30-day duplicate PR detector.</li>
+        <li>Usage baseline test → criticality score 1-100.</li>
+      </ol></div></div>
+  </div>
+</main></div></div>
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+UI.nav('submit');
+(async()=>{
+  const depts = await API.get('/departments');
+  dept.innerHTML = depts.map(d=>`<option value="${d.id}">${d.name} — ${UI.money(d.remaining)} of ${UI.money(d.budget_total)} remaining</option>`).join('');
+})();
+pf.addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  try {
+    const res = await API.post('/requests', {raw_text: raw.value, department_id: +dept.value,
+      qty: +qty.value, unit_price: +price.value, required_date: date.value, notes: notes.value});
+    location.href = '/analysis.html?id=' + res.id;
+  } catch(e) { UI.toast('SUBMISSION REJECTED — ' + e.message); }
+});
+</script></body></html>

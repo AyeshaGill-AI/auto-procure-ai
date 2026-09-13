@@ -1,0 +1,60 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | Analytics</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body><div class="shell">
+<aside class="side">
+  <div class="brand"><a href="/dashboard.html"><span class="wordmark">GATEWAY</span><span class="brand-sub">AUTOPROCURE AI | PR CONTROL</span></a></div>
+  <nav class="nav">
+    <a href="/dashboard.html" data-nav="dashboard"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span><i class="arr">→</i></a>
+    <a href="/submit.html" data-nav="submit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span><i class="arr">→</i></a>
+    <a href="/history.html" data-nav="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>My Requests</span><i class="arr">→</i></a>
+    <a href="/analytics.html" data-nav="analytics"><svg viewBox="0 0 24 24"><path d="M5 20V10M11 20V4M17 20v-8M21 20H3"/></svg><span>Analytics</span><i class="arr">→</i></a>
+    <a href="/settings.html" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Settings</span><i class="arr">→</i></a>
+  </nav>
+  <div class="side-foot"><div class="userbox"><div class="un" data-user-name>—</div><div class="ur" data-user-role></div></div>
+    <button class="btn" id="logout" style="margin-top:.7rem;width:100%;justify-content:center">LOG OUT <i class="arr">→</i></button></div>
+</aside>
+<div><header class="top"><div class="crumb"><a href="/dashboard.html">HOME</a><i class="arr">→</i><span>ANALYTICS</span></div>
+  <form class="search" id="globalsearch"><input placeholder="SEARCH REQUESTS, ITEMS, SKUs..."><button type="submit"><i class="arr">→</i></button></form></header>
+<main class="main"><div class="hazardbar"></div>
+  <div class="pagehead"><div><h1>USAGE & SPEND ANALYTICS</h1><div class="sub">Consumption baselines, budget burn and gate outcome distribution across the plant.</div></div></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid2">
+    <div class="card"><header><h2>STATUS DISTRIBUTION</h2></header><div class="body" id="c1"></div></div>
+    <div class="card"><header><h2>BUDGET UTILIZATION BY DEPARTMENT</h2></header><div class="body" id="c2"></div></div>
+    <div class="card"><header><h2>REQUESTED QTY VS MONTHLY USAGE</h2><span class="mono">SAGE=USAGE / INK=REQUEST</span></header><div class="body" id="c3"></div></div>
+    <div class="card"><header><h2>MONTHLY REQUEST VOLUME</h2></header><div class="body" id="c4"></div></div>
+  </div>
+</main></div></div>
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+UI.nav('analytics');
+function bars(rows, valKey, lblKey){
+  const w=520,h=230,p=34, max=Math.max(...rows.map(r=>r[valKey]),1);
+  const gap=(w-2*p)/rows.length, bw=Math.min(46,gap*.6);
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%">` +
+    `<line x1="${p}" y1="${h-p}" x2="${w-p}" y2="${h-p}" stroke="var(--ink)" stroke-width="2"/>` +
+    rows.map((r,i)=>{const bh=(h-2*p)*r[valKey]/max, x=p+i*gap+(gap-bw)/2;
+      return `<rect class="bar" x="${x}" y="${h-p-bh}" width="${bw}" height="${bh}" fill="var(--sage)" stroke="var(--ink)" stroke-width="2"/>
+        <text x="${x+bw/2}" y="${h-p+14}" text-anchor="middle">${r[lblKey]}</text>
+        <text x="${x+bw/2}" y="${h-p-bh-6}" text-anchor="middle">${r[valKey]}</text>`;}).join('') + `</svg>`;
+}
+(async()=>{
+  const [s, c] = await Promise.all([API.get('/analytics/summary'), API.get('/analytics/charts')]);
+  const ct = s.counts;
+  const rate = s.total ? Math.round(100*(ct.APPROVED||0)/s.total) : 0;
+  kpis.innerHTML = [['REQUESTS', s.total, 'all time'], ['APPROVAL RATE', rate+'%', 'approved / total'],
+    ['AVOIDED SPEND', UI.money(s.savings), 'approved + expedite'], ['AVG CRITICALITY', s.avg_score, 'score / 100']]
+    .map(k=>`<div class="kpi"><div class="num">${k[1]}</div><div class="lbl">${k[0]}</div><div class="delta">${k[2]}</div></div>`).join('');
+  c1.innerHTML = bars(c.status.map(r=>({label:r.label, n:r.n})), 'n', 'label');
+  c2.innerHTML = c.dept.map(d=>`<div class="hbar"><span class="mono">${d.name}</span>
+    <span class="track"><i class="fill" style="width:${d.pct}%"></i></span><span class="mono">${d.pct}%</span></div>`).join('');
+  const w=520,h=240,p=36, max=Math.max(...c.usage_vs_request.flatMap(r=>[r.a,r.b]),1);
+  const gap=(w-2*p)/c.usage_vs_request.length, bw=16;
+  c3.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:100%"><line x1="${p}" y1="${h-p}" x2="${w-p}" y2="${h-p}" stroke="var(--ink)" stroke-width="2"/>` +
+    c.usage_vs_request.map((r,i)=>{const x=p+i*gap+gap/2-bw-2, ha=(h-2*p)*r.a/max, hb=(h-2*p)*r.b/max;
+      return `<rect class="bar" x="${x}" y="${h-p-ha}" width="${bw}" height="${ha}" fill="var(--sage)" stroke="var(--ink)" stroke-width="2"/>
+        <rect class="bar" x="${x+bw+4}" y="${h-p-hb}" width="${bw}" height="${hb}" fill="var(--ink)"/>
+        <text x="${x+bw+2}" y="${h-p+14}" text-anchor="middle">${r.label.split(' ')[0].slice(0,9)}</text>`;}).join('') + `</svg>`;
+  c4.innerHTML = bars(c.monthly.map(r=>({label:r.m.slice(5), n:r.n})), 'n', 'label');
+})();
+</script></body></html>

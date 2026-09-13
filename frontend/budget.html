@@ -1,0 +1,134 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | Department Budgets</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body><div class="shell">
+<aside class="side">
+  <div class="brand"><a href="/dashboard.html"><span class="wordmark">GATEWAY</span><span class="brand-sub">AUTOPROCURE AI | PR CONTROL</span></a></div>
+  <nav class="nav">
+    <a href="/dashboard.html" data-nav="dashboard"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span><i class="arr">→</i></a>
+    <a href="/submit.html" data-nav="submit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span><i class="arr">→</i></a>
+    <a href="/history.html" data-nav="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>My Requests</span><i class="arr">→</i></a>
+    <a href="/analytics.html" data-nav="analytics"><svg viewBox="0 0 24 24"><path d="M5 20V10M11 20V4M17 20v-8M21 20H3"/></svg><span>Analytics</span><i class="arr">→</i></a>
+    <a href="/budget.html" data-nav="budget"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg><span>Department Budgets</span><i class="arr">→</i></a>
+    <a href="/settings.html" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg><span>Settings</span><i class="arr">→</i></a>
+  </nav>
+  <div class="side-foot"><div class="userbox"><div class="un" data-user-name>—</div><div class="ur" data-user-role>—</div></div>
+    <button class="btn" id="logout" style="margin-top:.7rem;width:100%;justify-content:center">LOG OUT <i class="arr">→</i></button></div>
+</aside>
+<div><header class="top"><div class="crumb"><a href="/dashboard.html">HOME</a><i class="arr">→</i><a href="/analytics.html">ANALYTICS</a><i class="arr">→</i><span>DEPARTMENT BUDGETS</span></div>
+  <form class="search" id="globalsearch"><input placeholder="SEARCH REQUESTS, ITEMS, SKUs..."><button type="submit"><i class="arr">→</i></button></form></header>
+<main class="main"><div class="hazardbar"></div>
+  <div class="pagehead"><div><h1>DEPARTMENT BUDGETS</h1><div class="sub">Allocation, expenditure and remaining capacity for every department — full create, edit and delete control.</div></div>
+    <button class="btn btn-primary" id="btnnew">+ NEW DEPARTMENT <i class="arr">→</i></button></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="card"><header><h2>BUDGET BREAKDOWN BY DEPARTMENT</h2><span class="mono" id="rolehint"></span></header><div class="body" id="budget-table"></div></div>
+  <div class="card"><header><h2>BUDGET ALERTS</h2></header><div class="body" id="alerts"></div></div>
+</main></div></div>
+
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;align-items:center;justify-content:center">
+  <form class="card modal-box" id="df" style="width:min(460px,92vw)">
+    <header><h2 id="mtitle">NEW DEPARTMENT</h2><span class="mono" id="mhint"></span></header>
+    <div class="body">
+      <div class="field"><label for="mname">Department Name</label><input id="mname" required maxlength="80" placeholder="e.g. Logistics"></div>
+      <div class="formgrid">
+        <div class="field"><label for="mtotal">Budget Total (USD)</label><input id="mtotal" type="number" min="0" step="0.01" required></div>
+        <div class="field"><label for="mspenta">Already Spent (USD)</label><input id="mspenta" type="number" min="0" step="0.01" value="0"></div>
+      </div>
+      <div style="display:flex;gap:.8rem;flex-wrap:wrap">
+        <button class="btn btn-primary" type="submit" id="msave">SAVE DEPARTMENT <i class="arr">→</i></button>
+        <button class="btn" type="button" id="mcancel">CANCEL</button>
+      </div>
+      <div class="mono" id="merr" style="margin-top:.6rem;color:var(--caution)"></div>
+    </div>
+  </form>
+</div>
+
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+UI.nav('budget');
+let IS_MANAGER = false;
+let DEPTS = [];
+let EDIT_ID = null;
+
+function bar(d){
+  return `<span class="track" style="flex:1"><i class="fill" style="width:${Math.min(d.pct,100)}%"></i></span><span class="mono">${d.pct}%</span>`;
+}
+function statusChip(d){
+  const s = d.status==='OVER_BUDGET' ? ['stop','✕ OVER BUDGET'] : d.status==='WARNING' ? ['caution','⚠ WARNING'] : ['pass','✓ ON TRACK'];
+  return `<span class="chip ${s[0]}">${s[1]}</span>`;
+}
+async function load(){
+  const depts = await API.get('/departments');
+  DEPTS = depts;
+  const rows = depts.map(d => ({
+    name: d.name, budget_total: d.budget_total, budget_spent: d.budget_spent,
+    remaining: d.remaining, pct: d.pct,
+    status: d.pct >= 90 ? 'OVER_BUDGET' : d.pct >= 70 ? 'WARNING' : 'ON_TRACK'
+  }));
+  const totalBudget = rows.reduce((s,d)=>s+d.budget_total,0);
+  const totalSpent = rows.reduce((s,d)=>s+d.budget_spent,0);
+  const kpiRows = [['TOTAL BUDGET', UI.money(totalBudget), rows.length + ' departments'],
+                ['TOTAL SPENT', UI.money(totalSpent), 'allocated'],
+                ['REMAINING', UI.money(totalBudget - totalSpent), 'available'],
+                ['OVER BUDGET', rows.filter(d=>d.status==='OVER_BUDGET').length, 'departments']];
+  document.getElementById('kpis').innerHTML = kpiRows.map(k=>`<div class="kpi"><div class="num">${k[1]}</div><div class="lbl">${k[0]}</div><div class="delta">${k[2]}</div></div>`).join('');
+  document.getElementById('budget-table').innerHTML = `<table><thead><tr><th>DEPARTMENT</th><th>TOTAL BUDGET</th><th>SPENT</th><th>REMAINING</th><th>UTILIZATION</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>` +
+    rows.map((d,i)=>`<tr>
+      <td><b>${d.name}</b></td>
+      <td class="mono">${UI.money(d.budget_total)}</td>
+      <td class="mono">${UI.money(d.budget_spent)}</td>
+      <td class="mono">${UI.money(d.remaining)}</td>
+      <td><div style="display:flex;align-items:center;gap:.5rem">${bar(d)}</div></td>
+      <td>${statusChip(d)}</td>
+      <td style="white-space:nowrap">${IS_MANAGER ? `
+        <button class="btn" style="padding:.2rem .6rem" data-edit="${i}" title="Edit department">EDIT <i class="arr">→</i></button>
+        <button class="btn" style="padding:.2rem .6rem;border-color:var(--caution);color:var(--caution)" data-del="${i}" title="Delete department">DEL <i class="arr">→</i></button>` : '<span class="mono">VIEW ONLY</span>'}
+      </td></tr>`).join('') +
+    `</tbody></table>`;
+  const alertRows = rows.filter(d=>d.status!=='ON_TRACK');
+  const alertsEl = document.getElementById('alerts');
+  if(!alertRows.length){alertsEl.innerHTML='<div class="mono">ALL DEPARTMENTS ARE ON TRACK</div>';}
+  else{alertsEl.innerHTML = alertRows.map(d=>`<div class="kv" style="border-left-color:${d.status==='OVER_BUDGET'?'var(--caution)':'var(--ink)'};margin-bottom:1rem"><b>${d.name}</b><span>${d.status==='OVER_BUDGET'?'Exceeded budget by':'Approaching limit —'} ${d.pct}% (${UI.money(d.remaining)} remaining)</span> <a class="link" href="/analytics.html">DETAILS <i class="arr">→</i></a></div>`).join('');}
+  document.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openModal(DEPTS[+b.dataset.edit])));
+  document.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>del(DEPTS[+b.dataset.del])));
+}
+function openModal(d){
+  EDIT_ID = d ? d.id : null;
+  mtitle.textContent = d ? 'EDIT DEPARTMENT' : 'NEW DEPARTMENT';
+  mhint.textContent = d ? '// ' + d.name : '// budget shown on every row after save';
+  mname.value = d ? d.name : '';
+  mtotal.value = d ? d.budget_total : '';
+  mspenta.value = d ? d.budget_spent : 0;
+  merr.textContent = '';
+  modal.style.display = 'flex';
+  mname.focus();
+}
+function closeModal(){ modal.style.display = 'none'; }
+async function del(d){
+  if (!confirm(`Delete department "${d.name}"? Departments with purchase requests cannot be deleted.`)) return;
+  try {
+    await API.del('/departments/' + d.id);
+    UI.toast(`DEPARTMENT ${d.name} DELETED`);
+    load();
+  } catch(e){ UI.toast('DELETE FAILED — ' + e.message); }
+}
+btnnew.addEventListener('click', ()=>openModal(null));
+mcancel.addEventListener('click', closeModal);
+df.addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  const body = { name: mname.value.trim(), budget_total: +mtotal.value, budget_spent: +mspenta.value };
+  try {
+    if (EDIT_ID) { await API.put('/departments/' + EDIT_ID, body); UI.toast('DEPARTMENT UPDATED'); }
+    else { await API.post('/departments', body); UI.toast('DEPARTMENT CREATED'); }
+    closeModal(); load();
+  } catch(e){ merr.textContent = 'ERROR — ' + e.message; }
+});
+(async()=>{
+  try {
+    const u = await API.get('/auth/me');
+    IS_MANAGER = u.role === 'Procurement Manager';
+    rolehint.textContent = IS_MANAGER ? 'MANAGER — FULL EDIT ACCESS' : 'VIEW ONLY — MANAGER CAN EDIT';
+    if (!IS_MANAGER){ btnnew.style.display = 'none'; }
+  } catch(e){}
+  load();
+})();
+</script></body></html>

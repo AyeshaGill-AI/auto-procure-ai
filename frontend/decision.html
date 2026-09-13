@@ -1,0 +1,85 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | AI Decision</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body><div class="shell">
+<aside class="side">
+  <div class="brand"><a href="/dashboard.html"><span class="wordmark">GATEWAY</span><span class="brand-sub">AUTOPROCURE AI | PR CONTROL</span></a></div>
+  <nav class="nav">
+    <a href="/dashboard.html" data-nav="dashboard"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span><i class="arr">→</i></a>
+    <a href="/submit.html" data-nav="submit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span><i class="arr">→</i></a>
+    <a href="/history.html" data-nav="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>My Requests</span><i class="arr">→</i></a>
+    <a href="/analytics.html" data-nav="analytics"><svg viewBox="0 0 24 24"><path d="M5 20V10M11 20V4M17 20v-8M21 20H3"/></svg><span>Analytics</span><i class="arr">→</i></a>
+    <a href="/budget.html" data-nav="budget"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg><span>Department Budgets</span><i class="arr">→</i></a>
+    <a href="/settings.html" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Settings</span><i class="arr">→</i></a>
+  </nav>
+  <div class="side-foot"><div class="userbox"><div class="un" data-user-name>—</div><div class="ur" data-user-role>—</div></div>
+    <button class="btn" id="logout" style="margin-top:.7rem;width:100%;justify-content:center">LOG OUT <i class="arr">→</i></button></div>
+</aside>
+<div><header class="top"><div class="crumb"><a href="/dashboard.html">HOME</a><i class="arr">→</i><a href="/history.html">ARCHIVE</a><i class="arr">→</i><span>DECISION</span></div>
+  <form class="search" id="globalsearch"><input placeholder="SEARCH REQUESTS, ITEMS, SKUs..."><button type="submit"><i class="arr">→</i></button></form></header>
+<main class="main"><div class="hazardbar"></div>
+  <div class="pagehead"><div><h1>AI DECISION <span id="pcode" class="mono" style="font-size:1rem"></span></h1>
+    <div class="sub">Criticality engine output with executable protocol. Actions write back to budget, stock and PO records.</div></div>
+    <a class="link" id="tochecks" href="#">OPEN VALIDATION LEDGER <i class="arr">→</i></a></div>
+  <div class="banner" id="banner"></div>
+  <div class="grid2">
+    <div class="card"><header><h2>REASONING TRACE</h2></header><div class="body"><ul class="reason" id="reason"></ul>
+      <div class="kv" style="margin-top:1rem"><b>LLM analyst summary</b><span id="llm" style="font-family:'Barlow Condensed';font-size:1rem"></span></div></div></div>
+    <div>
+      <div class="card"><header><h2>CRITICALITY ENGINE</h2></header><div class="body">
+        <div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:.8rem">
+          <span style="font-family:'Bebas Neue';font-size:4rem;line-height:1" id="score">—</span>
+          <span id="prio"></span></div>
+        <div class="meter"><i id="marker" style="left:0%"></i></div>
+        <div class="mono" style="display:flex;justify-content:space-between;margin:.4rem 0 1rem"><span>0</span><span>50</span><span>80</span><span>100</span></div>
+        <div id="parts"></div></div></div>
+      <div class="savings"><div class="lbl mono">AVOIDED EXTERNAL SPEND</div><div class="n" id="sav">$0</div></div>
+    </div>
+  </div>
+  <div class="card"><header><h2>RECOMMENDED ACTIONS</h2></header><div class="body"><ol class="acts" id="acts"></ol></div></div>
+  <div class="card"><header><h2>EXECUTE PROTOCOL</h2><span class="mono" id="statslot"></span></header>
+    <div class="body" style="display:flex;gap:.8rem;flex-wrap:wrap">
+      <button class="btn btn-primary" data-act="APPROVE">APPROVE + SEND TO ERP <i class="arr">→</i></button>
+      <button class="btn" data-act="HOLD">HOLD <i class="arr">→</i></button>
+      <button class="btn" data-act="INVESTIGATE">INVESTIGATE <i class="arr">→</i></button>
+      <button class="btn" data-act="EXPEDITE">EXPEDITE <i class="arr">→</i></button>
+      <button class="btn" data-act="REJECT" style="border-color:var(--caution);color:var(--caution)">REJECT <i class="arr">→</i></button>
+    </div></div>
+</main></div></div>
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+UI.nav('history');
+const id = UI.qs.get('id');
+const DESC = {REDUCE:'Requested quantity or source mix is heavier than necessary — internal stock, open POs and usage caps replace external spend.',
+  PROCEED:'Clean across all five gates. Dispatch as submitted.',
+  HOLD:'Blocked: budget variance or duplicate pattern requires manager override before any spend.',
+  EXPEDITE:'Zero-stock production risk. Auto-PO dispatch protocol authorised.',
+  INVESTIGATE:'Anomaly in consumption baseline — analyst review required before ordering.'};
+(async()=>{
+  const [pr, d] = await Promise.all([API.get('/requests/' + id), API.get('/requests/' + id + '/decision')]);
+  const dec = d.decision;
+  pcode.textContent = '// ' + pr.code;
+  tochecks.href = '/checks.html?id=' + id;
+  banner.className = 'banner ' + dec.recommendation;
+  banner.innerHTML = `<div class="word">${dec.recommendation}</div><div class="desc">${DESC[dec.recommendation]}</div>
+    <div data-status-chip>${UI.chip(pr.status)}</div>`;
+  reason.innerHTML = dec.reasoning.map(r=>`<li>${r}</li>`).join('');
+  llm.textContent = dec.llm_summary || '';
+  score.textContent = dec.score;
+  prio.innerHTML = `<span class="chip ${dec.priority==='CRITICAL'?'stop':dec.priority==='HIGH'?'caution':'info'}">${dec.priority}</span>`;
+  marker.style.left = dec.score + '%';
+  parts.innerHTML = Object.entries(dec.parts).map(([k,v])=>`<div class="kv"><b>${k}</b><span>${v} pts</span></div>`).join('');
+  sav.textContent = UI.money(dec.savings);
+  acts.innerHTML = dec.actions.map(a=>`<li>${a}</li>`).join('');
+  statslot.innerHTML = 'CURRENT STATUS: ' + UI.chip(pr.status);
+  document.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click', async()=>{
+    if (!confirm(`Execute protocol ${b.dataset.act} on ${pr.code}?`)) return;
+    try {
+      const r = await API.post(`/requests/${id}/action`, {action: b.dataset.act});
+      UI.toast(`PROTOCOL ${b.dataset.act} EXECUTED — STATUS ${r.status}` + (r.po_number ? ' // ' + r.po_number : ''));
+      statslot.innerHTML = 'CURRENT STATUS: ' + UI.chip(r.status);
+      const chipSlot = banner.querySelector('[data-status-chip]');
+      if (chipSlot) chipSlot.innerHTML = UI.chip(r.status);
+    } catch(e) { UI.toast('ACTION FAILED — ' + e.message); }
+  }));
+})();
+</script></body></html>

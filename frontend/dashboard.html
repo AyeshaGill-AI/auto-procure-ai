@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | Control Deck</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body><div class="shell">
+<aside class="side">
+  <div class="brand"><a href="/dashboard.html"><span class="wordmark">GATEWAY</span><span class="brand-sub">AUTOPROCURE AI | PR CONTROL</span></a></div>
+  <nav class="nav">
+    <a href="/dashboard.html" data-nav="dashboard"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span><i class="arr">→</i></a>
+    <a href="/submit.html" data-nav="submit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span><i class="arr">→</i></a>
+    <a href="/history.html" data-nav="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>My Requests</span><i class="arr">→</i></a>
+    <a href="/analytics.html" data-nav="analytics"><svg viewBox="0 0 24 24"><path d="M5 20V10M11 20V4M17 20v-8M21 20H3"/></svg><span>Analytics</span><i class="arr">→</i></a>
+    <a href="/budget.html" data-nav="budget"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg><span>Department Budgets</span><i class="arr">→</i></a>
+    <a href="/settings.html" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg><span>Settings</span><i class="arr">→</i></a>
+  </nav>
+  <div class="side-foot"><div class="userbox"><div class="un" data-user-name>—</div><div class="ur" data-user-role>—</div></div>
+    <button class="btn" id="logout" style="margin-top:.7rem;width:100%;justify-content:center">LOG OUT <i class="arr">→</i></button></div>
+</aside>
+<div><header class="top"><div class="crumb"><a href="/dashboard.html">HOME</a><i class="arr">→</i><span>CONTROL DECK</span></div>
+  <form class="search" id="globalsearch"><input placeholder="SEARCH REQUESTS, ITEMS, SKUs..."><button type="submit"><i class="arr">→</i></button></form></header>
+<main class="main"><div class="hazardbar"></div>
+  <div class="pagehead"><div><h1>CONTROL DECK</h1><div class="sub">Live requisition traffic, gate outcomes and approval queue — operator <span data-user-name>—</span></div></div>
+    <a class="btn btn-primary" href="/submit.html">NEW REQUISITION <i class="arr">→</i></a></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid23">
+    <div class="card"><header><h2>RECENT REQUISITIONS</h2><a class="link" href="/history.html">FULL ARCHIVE <i class="arr">→</i></a></header>
+      <div class="body" style="padding:0"><table><thead><tr><th>ID</th><th>Item</th><th>Dept</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody id="recent"></tbody></table></div></div>
+    <div class="card"><header><h2>PRIORITY QUEUE</h2></header><div class="body" id="queue"></div></div>
+  </div>
+</main></div></div>
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+UI.nav('dashboard');
+(async()=>{
+  const [s, rows] = await Promise.all([API.get('/analytics/summary'), API.get('/requests')]);
+  const c = s.counts;
+  const K = [['TOTAL REQUESTS', s.total, 'all gates'], ['APPROVED', c.APPROVED||0, 'PO dispatched'],
+             ['ON HOLD', c.ON_HOLD||0, 'awaiting override'], ['INVESTIGATE', c.INVESTIGATE||0, 'analyst review'],
+             ['EXPEDITE', c.EXPEDITE||0, 'auto-PO']];
+  kpis.innerHTML = K.map(k=>`<div class="kpi"><div class="num">${k[1]}</div><div class="lbl">${k[0]}</div><div class="delta">${k[2]}</div></div>`).join('');
+  recent.innerHTML = rows.slice(0,6).map(r=>`<tr><td class="mono">${r.code}</td><td>${r.item}</td><td>${r.dept}</td>
+    <td>${UI.chip(r.status)}</td><td class="mono">${r.date}</td>
+    <td><a class="link" href="/decision.html?id=${r.id}">VIEW <i class="arr">→</i></a></td></tr>`).join('');
+  const q = rows.filter(r=>r.score!=null).sort((a,b)=>b.score-a.score).slice(0,4);
+  queue.innerHTML = q.map(r=>`<div class="kv"><b>${r.code} · ${r.priority||'—'}</b>
+    <span>${r.item} — score ${r.score}/100</span><br>
+    <a class="link" href="/decision.html?id=${r.id}">OPEN DECISION <i class="arr">→</i></a></div>`).join('') || '<div class="mono">QUEUE EMPTY</div>';
+})();
+</script></body></html>

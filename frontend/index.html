@@ -1,0 +1,81 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | AutoProcure AI — Login</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body>
+<div class="login">
+  <div class="login-left">
+    <div><span class="wordmark">GATEWAY</span>
+      <div class="brand-sub">AUTOPROCURE AI | PURCHASE REQUEST CHECKING SYSTEM</div></div>
+    <ul class="gates-list">
+      <li><span class="gn"></span><span><span class="gt">Data Cleaning</span><br><span class="gd">Raw strings intercepted, corrected, mapped to item master SKUs.</span></span></li>
+      <li><span class="gn"></span><span><span class="gt">Budget Check</span><br><span class="gd">Estimated cost vs remaining departmental allocation, pre-submission.</span></span></li>
+      <li><span class="gn"></span><span><span class="gt">Inventory + Open PO</span><br><span class="gd">Multi-warehouse idle stock and duplicate PR sweep across 30 days.</span></span></li>
+      <li><span class="gn"></span><span><span class="gt">Usage Analysis</span><br><span class="gd">Requested volume tested against monthly consumption baseline.</span></span></li>
+    </ul>
+    <div class="hazardbar"></div>
+    
+  </div>
+  <div class="login-right">
+    <div class="login-card">
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" id="tab-login" role="tab" aria-selected="true">SIGN IN <i class="arr">→</i></button>
+        <button type="button" class="tab" id="tab-register" role="tab" aria-selected="false">CREATE ACCOUNT <i class="arr">→</i></button>
+      </div>
+      <form id="lf" autocomplete="on">
+      
+      <div class="field"><label for="u">Operator ID</label><input id="u" autocomplete="username" required></div>
+      <div class="field"><label for="p">Passcode</label><input id="p" type="password" autocomplete="current-password" required></div>
+      <label class="checkline"><input type="checkbox" id="remember"> Remember me for 30 days</label>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1rem" type="submit">ENTER GATE <i class="arr">→</i></button>
+      </form>
+      <form id="rf" style="display:none" autocomplete="off">
+        <div class="field"><label for="rname">Full Name</label><input id="rname" maxlength="80" required></div>
+        <div class="field"><label for="ru">Operator ID</label><input id="ru" maxlength="40" pattern="[A-Za-z0-9._-]{3,40}" required>
+          <div class="sub" style="margin-top:.3rem">3-40 characters — letters, digits, dots, dashes, underscores.</div></div>
+        <div class="field"><label for="rp">Passcode</label><input id="rp" type="password" minlength="8" autocomplete="new-password" required>
+          <div class="sub" style="margin-top:.3rem">Minimum 8 characters with at least one letter and one digit.</div></div>
+        <div class="field"><label for="rp2">Confirm Passcode</label><input id="rp2" type="password" autocomplete="new-password" required></div>
+        <div class="field"><label for="rrole">Access Level</label>
+          <select id="rrole">
+            <option value="Department Requisitioner">Department Requisitioner — submit and track own requests</option>
+            <option value="Procurement Manager">Procurement Manager — approve and manage all requests</option>
+          </select></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" type="submit">CREATE ACCOUNT <i class="arr">→</i></button>
+      </form>
+      <div class="mono" id="err" style="margin-top:.8rem;color:var(--caution)"></div>
+      <div class="mono" id="okmsg" style="margin-top:.4rem;color:var(--pass)"></div>
+      <div class="mono" style="margin-top:1rem;color:var(--slate)">DEMO: ayesha.gill / procure123 · marcus.reed / request123</div>
+    </div>
+  </div>
+</div>
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+const lform=document.getElementById('lf'),rform=document.getElementById('rf');
+const tabL=document.getElementById('tab-login'),tabR=document.getElementById('tab-register');
+const errEl=document.getElementById('err'),okEl=document.getElementById('okmsg');
+function showErr(m){errEl.textContent=m;okEl.textContent='';}
+function showOk(m){okEl.textContent=m;errEl.textContent='';}
+function swapTab(reg){
+  lform.style.display=reg?'none':'';rform.style.display=reg?'':'none';
+  tabL.classList.toggle('active',!reg);tabL.setAttribute('aria-selected',String(!reg));
+  tabR.classList.toggle('active',reg);tabR.setAttribute('aria-selected',String(reg));
+  errEl.textContent='';okEl.textContent='';
+}
+tabL.addEventListener('click',()=>swapTab(false));
+tabR.addEventListener('click',()=>swapTab(true));
+API.get('/auth/me').then(()=>location.href='/dashboard.html').catch(()=>{});
+lform.addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  try{ await API.post('/auth/login',{username:u.value,password:p.value,remember:document.getElementById('remember').checked}); location.href='/dashboard.html'; }
+  catch(e){ showErr('ACCESS DENIED — '+e.message); }
+});
+rform.addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  if(rp.value!==rp2.value){ showErr('PASSCODES DO NOT MATCH'); return; }
+  try{
+    const res=await API.post('/auth/register',{name:rname.value.trim(),username:ru.value.trim(),password:rp.value,role:rrole.value});
+    showOk('ACCOUNT CREATED — WELCOME, '+(res.name||ru.value).toUpperCase());
+    UI.toast('ACCOUNT CREATED — SIGNED IN');
+    setTimeout(()=>location.href='/dashboard.html',900);
+  }catch(e){ showErr('REGISTRATION FAILED — '+e.message); }
+});
+</script></body></html> 

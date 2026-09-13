@@ -1,0 +1,60 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | Request Archive</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body><div class="shell">
+<aside class="side">
+  <div class="brand"><a href="/dashboard.html"><span class="wordmark">GATEWAY</span><span class="brand-sub">AUTOPROCURE AI | PR CONTROL</span></a></div>
+  <nav class="nav">
+    <a href="/dashboard.html" data-nav="dashboard"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span><i class="arr">→</i></a>
+    <a href="/submit.html" data-nav="submit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span><i class="arr">→</i></a>
+    <a href="/history.html" data-nav="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>My Requests</span><i class="arr">→</i></a>
+    <a href="/analytics.html" data-nav="analytics"><svg viewBox="0 0 24 24"><path d="M5 20V10M11 20V4M17 20v-8M21 20H3"/></svg><span>Analytics</span><i class="arr">→</i></a>
+    <a href="/budget.html" data-nav="budget"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg><span>Department Budgets</span><i class="arr">→</i></a>
+    <a href="/settings.html" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Settings</span><i class="arr">→</i></a>
+  </nav>
+  <div class="side-foot"><div class="userbox"><div class="un" data-user-name>—</div><div class="ur" data-user-role>—</div></div>
+    <button class="btn" id="logout" style="margin-top:.7rem;width:100%;justify-content:center">LOG OUT <i class="arr">→</i></button></div>
+</aside>
+<div><header class="top"><div class="crumb"><a href="/dashboard.html">HOME</a><i class="arr">→</i><span>ARCHIVE</span></div>
+  <form class="search" id="globalsearch"><input placeholder="SEARCH REQUESTS, ITEMS, SKUs..."><button type="submit"><i class="arr">→</i></button></form></header>
+<main class="main"><div class="hazardbar"></div>
+  <div class="pagehead"><div><h1>REQUEST ARCHIVE</h1><div class="sub">Track every submitted requisition, its gate outcome and execution status.</div></div>
+    <a class="btn btn-primary" href="/submit.html">NEW REQUISITION <i class="arr">→</i></a></div>
+  <div class="filterbar">
+    <div class="field"><label for="fq">Search</label><input id="fq" placeholder="item, sku, code..."></div>
+    <div class="field"><label for="fs">Status</label><select id="fs"><option value="">ALL STATUSES</option>
+      <option>PENDING</option><option>REDUCE</option><option>APPROVED</option><option>ON_HOLD</option>
+      <option>INVESTIGATE</option><option>EXPEDITE</option><option>REJECTED</option></select></div>
+    <div class="field"><label for="fd">Department</label><select id="fd"><option value="">ALL DEPARTMENTS</option></select></div>
+  </div>
+  <div class="card" style="margin:0"><div class="body" style="padding:0">
+    <table><thead><tr><th>ID</th><th>Item</th><th>Dept</th><th>Qty</th><th>Score</th><th>Status</th><th>Date</th><th></th></tr></thead>
+    <tbody id="rows"></tbody></table></div></div>
+  <div class="foot" id="count"></div>
+</main></div></div>
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+UI.nav('history');
+async function load(){
+  const p = new URLSearchParams();
+  if (fq.value) p.set('q', fq.value);
+  if (fs.value) p.set('status', fs.value);
+  if (fd.value) p.set('dept', fd.value);
+  const rows = await API.get('/requests?' + p.toString());
+  const rowsEl = document.getElementById('rows');
+  rowsEl.innerHTML = rows.map(r=>`<tr><td class="mono">${r.code}</td><td>${r.item}</td><td>${r.dept}</td>
+    <td class="mono">${r.qty}</td><td class="mono">${r.score ?? '—'}</td><td>${UI.chip(r.status)}</td>
+    <td class="mono">${r.date}</td>
+    <td><a class="link" href="/decision.html?id=${r.id}">VIEW <i class="arr">→</i></a>
+        &nbsp;<a class="link" href="/checks.html?id=${r.id}">LEDGER <i class="arr">→</i></a></td></tr>`).join('')
+    || '<tr><td colspan="8" class="mono">NO RECORDS MATCH FILTER</td></tr>';
+  count.textContent = rows.length + ' RECORDS RETURNED';
+}
+(async()=>{
+  const c = await API.get('/analytics/charts');
+  fd.innerHTML = '<option value="">ALL DEPARTMENTS</option>' + c.dept.map(d=>`<option>${d.name}</option>`).join('');
+  if (UI.qs.get('q')) fq.value = UI.qs.get('q');
+  if (UI.qs.get('status')) fs.value = UI.qs.get('status');
+  [fq, fs, fd].forEach(el => el.addEventListener('input', load));
+  load();
+})();
+</script></body></html>

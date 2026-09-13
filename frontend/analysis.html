@@ -1,0 +1,75 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | Gate Sequence</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body><div class="shell">
+<aside class="side">
+  <div class="brand"><a href="/dashboard.html"><span class="wordmark">GATEWAY</span><span class="brand-sub">AUTOPROCURE AI | PR CONTROL</span></a></div>
+  <nav class="nav">
+    <a href="/dashboard.html" data-nav="dashboard"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span><i class="arr">→</i></a>
+    <a href="/submit.html" data-nav="submit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span><i class="arr">→</i></a>
+    <a href="/history.html" data-nav="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>My Requests</span><i class="arr">→</i></a>
+    <a href="/analytics.html" data-nav="analytics"><svg viewBox="0 0 24 24"><path d="M5 20V10M11 20V4M17 20v-8M21 20H3"/></svg><span>Analytics</span><i class="arr">→</i></a>
+    <a href="/budget.html" data-nav="budget"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg><span>Department Budgets</span><i class="arr">→</i></a>
+    <a href="/settings.html" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Settings</span><i class="arr">→</i></a>
+  </nav>
+  <div class="side-foot"><div class="userbox"><div class="un" data-user-name>—</div><div class="ur" data-user-role>—</div></div>
+    <button class="btn" id="logout" style="margin-top:.7rem;width:100%;justify-content:center">LOG OUT <i class="arr">→</i></button></div>
+</aside>
+<div><header class="top"><div class="crumb"><a href="/dashboard.html">HOME</a><i class="arr">→</i><a href="/submit.html">NEW</a><i class="arr">→</i><span>GATES</span></div>
+  <form class="search" id="globalsearch"><input placeholder="SEARCH REQUESTS, ITEMS, SKUs..."><button type="submit"><i class="arr">→</i></button></form></header>
+<main class="main"><div class="hazardbar"></div>
+  <div class="pagehead"><div><h1>GATE SEQUENCE <span id="pcode" class="mono" style="font-size:1rem"></span></h1>
+    <div class="sub">Five validation layers execute in order against budget, stock, open orders and consumption history.</div></div></div>
+  <div class="grid23">
+    <div class="card"><header><h2>VALIDATION RUN</h2><span class="mono" id="clock"></span></header>
+      <div class="body">
+        <ol class="steps" id="steps">
+          <li data-g="1"><span class="stepbox">G1</span><span><span class="st">Data Cleaning</span><br><span class="sd">standardize + SKU map</span></span><span class="slot mono">QUEUED</span></li>
+          <li data-g="2"><span class="stepbox">G2</span><span><span class="st">Budget Check</span><br><span class="sd">allocation vs estimate</span></span><span class="slot mono">QUEUED</span></li>
+          <li data-g="3"><span class="stepbox">G3</span><span><span class="st">Inventory Sweep</span><br><span class="sd">multi-warehouse stock</span></span><span class="slot mono">QUEUED</span></li>
+          <li data-g="4"><span class="stepbox">G4</span><span><span class="st">Open PO / Duplicate</span><br><span class="sd">30-day pattern search</span></span><span class="slot mono">QUEUED</span></li>
+          <li data-g="5"><span class="stepbox">G5</span><span><span class="st">Usage Analysis</span><br><span class="sd">consumption baseline</span></span><span class="slot mono">QUEUED</span></li>
+        </ol>
+        <div class="progress"><i id="bar"></i></div>
+        <div id="next" style="display:none;gap:.8rem;flex-wrap:wrap">
+          <a class="btn" id="tochecks" href="#">VALIDATION LEDGER <i class="arr">→</i></a>
+          <a class="btn btn-primary" id="todecision" href="#">AI DECISION <i class="arr">→</i></a>
+        </div>
+      </div></div>
+    <div class="card"><header><h2>REQUEST SUMMARY</h2></header><div class="body" id="sum"></div></div>
+  </div>
+</main></div></div>
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+UI.nav('submit');
+const id = UI.qs.get('id');
+const OK = ['PASSED','FOUND','CLEAR','OPTIMAL'];
+(async()=>{
+  const pr = await API.get('/requests/' + id);
+  pcode.textContent = '// ' + pr.code;
+  sum.innerHTML = `<div class="kv"><b>Raw input</b><span></span></div>
+    <div class="kv"><b>Quantity</b><span>${pr.qty}</span></div>
+    <div class="kv"><b>Est. unit price</b><span>${UI.money(pr.unit_cost)}</span></div>
+    <div class="kv"><b>Department</b><span>${pr.dept}</span></div>
+    <div class="kv"><b>Required</b><span>${pr.required_date}</span></div>`;
+  sum.querySelector('.kv span').textContent = pr.raw_text;
+  try {
+    for (let n = 1; n <= 5; n++) {
+      const li = document.querySelector(`li[data-g="${n}"]`);
+      li.className = 'run'; li.querySelector('.slot').textContent = 'RUNNING';
+      clock.textContent = 'GATE ' + n + '/5 EXECUTING';
+      const res = await API.post(`/requests/${id}/gates/${n}`);
+      const st = res.result.status;
+      li.className = OK.includes(st) ? 'done' : 'flag';
+      li.querySelector('.slot').innerHTML = UI.gateChip(st);
+      bar.style.width = (n * 20) + '%';
+      await new Promise(r => setTimeout(r, 320));
+    }
+    clock.textContent = 'SEQUENCE COMPLETE';
+    tochecks.href = '/checks.html?id=' + id; todecision.href = '/decision.html?id=' + id;
+    next.style.display = 'flex';
+  } catch(e) {
+    clock.textContent = 'SEQUENCE FAULT — ' + e.message;
+    UI.toast('GATE RUN FAILED — ' + e.message);
+  }
+})();
+</script></body></html>

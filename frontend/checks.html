@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GATEWAY | Validation Ledger</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body><div class="shell">
+<aside class="side">
+  <div class="brand"><a href="/dashboard.html"><span class="wordmark">GATEWAY</span><span class="brand-sub">AUTOPROCURE AI | PR CONTROL</span></a></div>
+  <nav class="nav">
+    <a href="/dashboard.html" data-nav="dashboard"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Dashboard</span><i class="arr">→</i></a>
+    <a href="/submit.html" data-nav="submit"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span><i class="arr">→</i></a>
+    <a href="/history.html" data-nav="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>My Requests</span><i class="arr">→</i></a>
+    <a href="/analytics.html" data-nav="analytics"><svg viewBox="0 0 24 24"><path d="M5 20V10M11 20V4M17 20v-8M21 20H3"/></svg><span>Analytics</span><i class="arr">→</i></a>
+    <a href="/budget.html" data-nav="budget"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg><span>Department Budgets</span><i class="arr">→</i></a>
+    <a href="/settings.html" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Settings</span><i class="arr">→</i></a>
+  </nav>
+  <div class="side-foot"><div class="userbox"><div class="un" data-user-name>—</div><div class="ur" data-user-role>—</div></div>
+    <button class="btn" id="logout" style="margin-top:.7rem;width:100%;justify-content:center">LOG OUT <i class="arr">→</i></button></div>
+</aside>
+<div><header class="top"><div class="crumb"><a href="/dashboard.html">HOME</a><i class="arr">→</i><a href="/history.html">ARCHIVE</a><i class="arr">→</i><span>LEDGER</span></div>
+  <form class="search" id="globalsearch"><input placeholder="SEARCH REQUESTS, ITEMS, SKUs..."><button type="submit"><i class="arr">→</i></button></form></header>
+<main class="main"><div class="hazardbar"></div>
+  <div class="pagehead"><div><h1>VALIDATION LEDGER <span id="pcode" class="mono" style="font-size:1rem"></span></h1>
+    <div class="sub">Every gate result persisted with the request. Expand a row for raw evidence.</div></div>
+    <a class="btn btn-primary" id="todecision" href="#">AI DECISION <i class="arr">→</i></a></div>
+  <div class="card" style="margin:0"><div id="gates"></div></div>
+</main></div></div>
+<script src="/js/api.js"></script><script src="/js/app.js"></script>
+<script>
+UI.nav('history');
+const id = UI.qs.get('id');
+(async()=>{
+  const [pr, d] = await Promise.all([API.get('/requests/' + id), API.get('/requests/' + id + '/decision')]);
+  pcode.textContent = '// ' + pr.code;
+  todecision.href = '/decision.html?id=' + id;
+  const g = d.gates;
+  const kv = (b, s) => `<div class="kv"><b>${b}</b><span>${s}</span></div>`;
+  const blocks = [
+    ['G1','Data Cleaning', g['1'], kv('Original input', g['1'].original) + kv('Standardized', g['1'].cleaned) + kv('SKU / GL', (g['1'].sku||'—') + ' / ' + (g['1'].gl||'—')) + kv('Category / unit', (g['1'].category||'—') + ' / ' + UI.money(g['1'].unit_cost))],
+    ['G2','Budget Check', g['2'], kv('Estimated cost', UI.money(g['2'].estimated_cost)) + kv('Remaining budget', UI.money(g['2'].remaining_budget)) + kv('Delta', UI.money(g['2'].delta)) + kv('Department', g['2'].department)],
+    ['G3','Inventory Sweep', g['3'], kv('Total idle stock', g['3'].total + ' units') + kv('Breakdown', g['3'].breakdown.length ? g['3'].breakdown.map(b=>b.warehouse+': '+b.stock).join(' · ') : 'no stock on hand')],
+    ['G4','Open PO / Duplicate', g['4'], kv('Open PO', g['4'].open_po ? g['4'].open_po.number + ' (' + g['4'].open_po.qty + ' units)' : 'none') + kv('Duplicate PR', g['4'].duplicate_pr ? g['4'].duplicate_pr.code : 'none detected')],
+    ['G5','Usage Analysis', g['5'], kv('Avg monthly usage', g['5'].avg_monthly + ' / month') + kv('Peak monthly', g['5'].peak_monthly) + kv('Request equals', (g['5'].months ?? '—') + ' months') + kv('Observation', g['5'].note)]
+  ];
+  gates.innerHTML = blocks.map(b=>`<details class="gate" open>
+    <summary><span class="gi">${b[0]}</span><span class="gt">${b[1]}</span>${UI.gateChip(b[2].status)}<i class="chev">▾</i></summary>
+    <div class="gbody">${b[3]}</div></details>`).join('');
+})();
+</script></body></html>
