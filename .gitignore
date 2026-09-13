@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.db
+.env
+backend/data/autoprocure.db
+backend/data/secret.key
+backend/data/*.bak
